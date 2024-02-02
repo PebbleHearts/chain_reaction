@@ -1,8 +1,10 @@
 class CellItem {
-  int count;
+  List<String> dotIds;
   int user;
 
-  CellItem(this.count, this.user);
+  CellItem(this.dotIds, this.user);
+
+  get dotsCount => dotIds.length;
 }
 
 class Dot {

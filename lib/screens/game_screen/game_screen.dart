@@ -16,76 +16,104 @@ class _GameScreenState extends State<GameScreen> {
   List<Color> playerColors = [Colors.green, Colors.orange];
   int currentPlayerIndex = 0;
   List<List<CellItem>> matrix = [];
-  List<Dot> dotsList = [Dot('1', 40, 40, 1), Dot('2', 40, 40, 1)];
+  List<Dot> dotsList = [];
+
+  int currentId = 1;
+
+  int getNewId() {
+    return currentId++;
+  }
 
   @override
   void initState() {
     matrix = List<List<CellItem>>.generate(
         numberOfRows,
-        (x) => List<CellItem>.generate(numberOfColumns, (y) => CellItem(0, -1),
+        (x) => List<CellItem>.generate(numberOfColumns, (y) => CellItem([], -1),
             growable: false),
         growable: false);
     super.initState();
   }
 
-  handlePendingItems(List<List<int>> newPendingItems) {
-    if (newPendingItems.isNotEmpty) {
+  handlePendingTasks(List<List<int>> pendingActionCells) {
+    final List<List<int>> newPendingItems = [];
+    for (var pendingCell in pendingActionCells) {
+      final row = pendingCell[0];
+      final column = pendingCell[1];
+      final possibleMovements = getNumberOfPossibleMovementDirections(
+          row, numberOfRows - 1, column, numberOfColumns - 1);
+      for (int i = 0; i < possibleMovements.length; i++) {
+        final possibleMovement = possibleMovements[i];
+        final newRow = possibleMovement[0];
+        final newColumn = possibleMovement[1];
+        final currentMovingDotId = matrix[row][column].dotIds[i];
+        final dotsInNewLocation = matrix[newRow][newColumn].dotIds;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          for(var dotId in dotsInNewLocation) {
+            final newLocationCollegueDotIndex =  dotsList.indexWhere((element) => element.id == dotId);
+            dotsList[newLocationCollegueDotIndex].player = matrix[row][column].user;
+          }
+          setState(() {});
+        });
+        matrix[newRow][newColumn].dotIds.add(currentMovingDotId);
+        final movingDotIndex =
+            dotsList.indexWhere((element) => element.id == currentMovingDotId);
+        final xDirection = newColumn;
+        final yDirection = newRow;
+        final xOffset = xDirection * 100.0 + 40;
+        final yOffset = yDirection * 100.0 + 40;
+        dotsList[movingDotIndex].x = xOffset;
+        dotsList[movingDotIndex].y = yOffset;
+        dotsList[movingDotIndex].player = currentPlayerIndex;
+        matrix[newRow][newColumn].user = currentPlayerIndex;
+
+        if (isCellOverflowing(newRow, newColumn)) {
+          newPendingItems.add([newRow, newColumn]);
+        }
+      }
+      matrix[row][column].dotIds = [];
+      setState(() {});
+      handleDelayedPendingTasks(newPendingItems, false);
+    }
+  }
+
+  handleDelayedPendingTasks(List<List<int>> pendingActionCells, bool short) {
+    if (pendingActionCells.isNotEmpty) {
       Future.delayed(
-        const Duration(seconds: 1),
-        () => handleMovement(newPendingItems),
+        Duration(milliseconds: short ? 100 : 1000),
+        () => handlePendingTasks(pendingActionCells),
       );
     } else {
       currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-      print('currentPlayerIndex $currentPlayerIndex');
       setState(() {});
     }
   }
 
-  handleMovement(List<List<int>> actionCells) {
-    final List<List<int>> newPendingItems = [];
-    for (var cell in actionCells) {
-      final x = cell[0];
-      final y = cell[1];
-      final currentCellItem = matrix[x][y];
-      final possibleMovementDirections = getNumberOfPossibleMovementDirections(
-          x, numberOfRows - 1, y, numberOfColumns - 1);
-      if (currentCellItem.count >= possibleMovementDirections.length) {
-        for (var element in possibleMovementDirections) {
-          matrix[element[0]][element[1]].count++;
-          matrix[element[0]][element[1]].user = currentPlayerIndex;
-          final numberOfMovement = getNumberOfPossibleMovementDirections(
-                  element[0], numberOfRows - 1, element[1], numberOfColumns - 1)
-              .length;
-          if ((matrix[element[0]][element[1]].count) >= numberOfMovement) {
-            newPendingItems.add(element);
-          }
-        }
-        matrix[x][y].count = 0;
-        matrix[x][y].user = -1;
-      }
-      setState(() {});
-    }
-    handlePendingItems(newPendingItems);
+  isCellOverflowing(x, y) {
+    final possibleMovements = getNumberOfPossibleMovementDirections(
+        x, numberOfRows - 1, y, numberOfColumns - 1);
+    return matrix[x][y].dotsCount >= possibleMovements.length;
+  }
+
+  handleAddDot(int row, int column) {
+    final newDotId = getNewId().toString();
+    matrix[row][column].dotIds.add(newDotId);
+    matrix[row][column].user = currentPlayerIndex;
+    final xDirection = column;
+    final yDirection = row;
+    final xOffset = xDirection * 100.0 + 40;
+    final yOffset = yDirection * 100.0 + 40;
+    dotsList.add(Dot(newDotId, xOffset, yOffset, currentPlayerIndex));
+    setState(() {});
   }
 
   handleIndexTap(int x, int y) {
-    final List<List<int>> newPendingItems = [];
-    final currentCellItem = matrix[x][y];
-    if (currentCellItem.user == -1 ||
-        currentCellItem.user == currentPlayerIndex) {
-      matrix[x][y].count++;
-      matrix[x][y].user = currentPlayerIndex;
-      setState(() {});
-      final numberOfMovement = getNumberOfPossibleMovementDirections(
-        x,
-        numberOfRows - 1,
-        y,
-        numberOfColumns - 1,
-      ).length;
-      if ((matrix[x][y].count) >= numberOfMovement) {
-        newPendingItems.add([x, y]);
-      }
-      handlePendingItems(newPendingItems);
+    handleAddDot(x, y);
+    if (isCellOverflowing(x, y)) {
+      handleDelayedPendingTasks([
+        [x, y]
+      ], true);
+    } else {
+      handleDelayedPendingTasks([], false);
     }
   }
 
@@ -109,6 +137,11 @@ class _GameScreenState extends State<GameScreen> {
                                   width: 100,
                                   child: ElevatedButton(
                                     style: ButtonStyle(
+                                      shape: MaterialStatePropertyAll(
+                                          RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                            3.0), // Adjust the radius as needed
+                                      )),
                                       side: MaterialStatePropertyAll(BorderSide(
                                           width: 1,
                                           color: playerColors[
@@ -137,20 +170,7 @@ class _GameScreenState extends State<GameScreen> {
                                               column.key,
                                             )
                                         : null,
-                                    // child: Text(''),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        ...List.generate(
-                                                column.value.count,
-                                                (index) => const SizedBox(
-                                                    width: 20,
-                                                    height: 20,
-                                                    child:
-                                                        Icon(Icons.circle_sharp)))
-                                            .toList()
-                                      ],
-                                    ),
+                                    child: const Text(''),
                                   ),
                                 ),
                               ),
@@ -159,27 +179,18 @@ class _GameScreenState extends State<GameScreen> {
                     )
               ],
             ),
-            // ...dotsList.map(
-            //   (dot) => AnimatedPositioned(
-            //       key: ValueKey(dot.id),
-            //       left: dot.x,
-            //       top: dot.y,
-            //       duration: const Duration(milliseconds: 500),
-            //       child: Icon(
-            //         Icons.circle_sharp,
-            //         size: 20,
-            //         color: playerColors[dot.player],
-            //       )),
-            // ),
-            // // AnimatedPositioned(child: Text('ss'), left: move ? 80 : 40, top: 40, duration: Duration(milliseconds: 2000)),
-            // ElevatedButton(
-            //     onPressed: () {
-            //       setState(() {
-            //         dotsList[0].y += 100;
-            //         dotsList[1].x += 100;
-            //       });
-            //     },
-            //     child: Text('click'))
+            ...dotsList.map(
+              (dot) => AnimatedPositioned(
+                  key: ValueKey(dot.id),
+                  left: dot.x,
+                  top: dot.y,
+                  duration: const Duration(milliseconds: 500),
+                  child: Icon(
+                    Icons.circle_sharp,
+                    size: 20,
+                    color: playerColors[dot.player],
+                  )),
+            ),
           ],
         ),
       ),
