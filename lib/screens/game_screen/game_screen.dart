@@ -15,18 +15,30 @@ class _GameScreenState extends State<GameScreen> {
   List<String> players = ['X', 'Y'];
   List<Color> playerColors = [Colors.green, Colors.orange];
   int currentPlayerIndex = 0;
-  bool move = false;
   List<List<CellItem>> matrix = [];
-  List<CellItem> flattenedList = [];
+  List<Dot> dotsList = [Dot('1', 40, 40, 1), Dot('2', 40, 40, 1)];
 
   @override
   void initState() {
     matrix = List<List<CellItem>>.generate(
-      numberOfRows,
-      (x) =>
-          List<CellItem>.generate(numberOfColumns, (y) => CellItem(0, -1), growable: false),
-      growable: false);
+        numberOfRows,
+        (x) => List<CellItem>.generate(numberOfColumns, (y) => CellItem(0, -1),
+            growable: false),
+        growable: false);
     super.initState();
+  }
+
+  handlePendingItems(List<List<int>> newPendingItems) {
+    if (newPendingItems.isNotEmpty) {
+      Future.delayed(
+        const Duration(seconds: 1),
+        () => handleMovement(newPendingItems),
+      );
+    } else {
+      currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+      print('currentPlayerIndex $currentPlayerIndex');
+      setState(() {});
+    }
   }
 
   handleMovement(List<List<int>> actionCells) {
@@ -35,8 +47,8 @@ class _GameScreenState extends State<GameScreen> {
       final x = cell[0];
       final y = cell[1];
       final currentCellItem = matrix[x][y];
-      final possibleMovementDirections =
-          getNumberOfPossibleMovementDirections(x, numberOfRows - 1, y, numberOfColumns - 1);
+      final possibleMovementDirections = getNumberOfPossibleMovementDirections(
+          x, numberOfRows - 1, y, numberOfColumns - 1);
       if (currentCellItem.count >= possibleMovementDirections.length) {
         for (var element in possibleMovementDirections) {
           matrix[element[0]][element[1]].count++;
@@ -53,17 +65,7 @@ class _GameScreenState extends State<GameScreen> {
       }
       setState(() {});
     }
-    // print('new pending actions: ${newPendingItems}');
-    if (newPendingItems.isNotEmpty) {
-      Future.delayed(
-        const Duration(seconds: 1),
-        () => handleMovement(newPendingItems),
-      );
-    } else {
-      currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-      print('currentPlayerIndex $currentPlayerIndex');
-      setState(() {});
-    }
+    handlePendingItems(newPendingItems);
   }
 
   handleIndexTap(int x, int y) {
@@ -83,16 +85,7 @@ class _GameScreenState extends State<GameScreen> {
       if ((matrix[x][y].count) >= numberOfMovement) {
         newPendingItems.add([x, y]);
       }
-
-      if (newPendingItems.isNotEmpty) {
-        Future.delayed(
-          const Duration(seconds: 1),
-          () => handleMovement(newPendingItems),
-        );
-      } else {
-        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-        setState(() {});
-      }
+      handlePendingItems(newPendingItems);
     }
   }
 
@@ -118,42 +111,46 @@ class _GameScreenState extends State<GameScreen> {
                                     style: ButtonStyle(
                                       side: MaterialStatePropertyAll(BorderSide(
                                           width: 1,
-                                          color: playerColors[currentPlayerIndex])),
+                                          color: playerColors[
+                                              currentPlayerIndex])),
                                       elevation:
                                           const MaterialStatePropertyAll(0.0),
                                       backgroundColor:
                                           const MaterialStatePropertyAll(
                                               Colors.white),
                                       foregroundColor: MaterialStatePropertyAll(
-                                          playerColors[
-                                              matrix[row.key][column.key].user == -1
-                                                  ? 0
-                                                  : matrix[row.key][column.key]
-                                                      .user]),
+                                          playerColors[matrix[row.key]
+                                                          [column.key]
+                                                      .user ==
+                                                  -1
+                                              ? 0
+                                              : matrix[row.key][column.key]
+                                                  .user]),
                                     ),
-                                    onPressed:
-                                        (matrix[row.key][column.key].user == -1 ||
-                                                matrix[row.key][column.key].user ==
-                                                    currentPlayerIndex)
-                                            ? () => handleIndexTap(
-                                                  row.key,
-                                                  column.key,
-                                                )
-                                            : null,
-                                    child: Text(''),
-                                    // child: Row(
-                                    //   mainAxisAlignment: MainAxisAlignment.center,
-                                    //   children: [
-                                    //     ...List.generate(
-                                    //             column.value.count,
-                                    //             (index) => const SizedBox(
-                                    //                 width: 20,
-                                    //                 height: 20,
-                                    //                 child:
-                                    //                     Icon(Icons.circle_sharp)))
-                                    //         .toList()
-                                    //   ],
-                                    // ),
+                                    onPressed: (matrix[row.key][column.key]
+                                                    .user ==
+                                                -1 ||
+                                            matrix[row.key][column.key].user ==
+                                                currentPlayerIndex)
+                                        ? () => handleIndexTap(
+                                              row.key,
+                                              column.key,
+                                            )
+                                        : null,
+                                    // child: Text(''),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        ...List.generate(
+                                                column.value.count,
+                                                (index) => const SizedBox(
+                                                    width: 20,
+                                                    height: 20,
+                                                    child:
+                                                        Icon(Icons.circle_sharp)))
+                                            .toList()
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -162,12 +159,27 @@ class _GameScreenState extends State<GameScreen> {
                     )
               ],
             ),
-            // AnimatedPositioned(child: Text('ss'), left: move ? 80 : 40, top: 40, duration: Duration(milliseconds: 2000)),
-            // ElevatedButton(onPressed: () {
-            //   setState(() {
-            //     move = !move;
-            //   });
-            // }, child: Text('click'))
+            // ...dotsList.map(
+            //   (dot) => AnimatedPositioned(
+            //       key: ValueKey(dot.id),
+            //       left: dot.x,
+            //       top: dot.y,
+            //       duration: const Duration(milliseconds: 500),
+            //       child: Icon(
+            //         Icons.circle_sharp,
+            //         size: 20,
+            //         color: playerColors[dot.player],
+            //       )),
+            // ),
+            // // AnimatedPositioned(child: Text('ss'), left: move ? 80 : 40, top: 40, duration: Duration(milliseconds: 2000)),
+            // ElevatedButton(
+            //     onPressed: () {
+            //       setState(() {
+            //         dotsList[0].y += 100;
+            //         dotsList[1].x += 100;
+            //       });
+            //     },
+            //     child: Text('click'))
           ],
         ),
       ),
