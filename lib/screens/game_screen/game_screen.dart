@@ -34,6 +34,25 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
   }
 
+  randomizeDots(int row, int column) {
+    final cellToRandomize = matrix[row][column];
+    final dotsToRandomize = cellToRandomize.dotIds;
+
+    final xDirection = column;
+    final yDirection = row;
+    final xOffset = xDirection * 100.0 + 40;
+    final yOffset = yDirection * 100.0 + 40;
+
+    for (var i = 0; i < dotsToRandomize.length; i++) {
+      final offset = getRandomizedDotOffset(i, dotsToRandomize.length);
+      final currentDotId = dotsToRandomize[i];
+      final currentDotIndex =
+          dotsList.indexWhere((element) => element.id == currentDotId);
+      dotsList[currentDotIndex].x = xOffset + offset[0];
+      dotsList[currentDotIndex].y = yOffset + offset[1];
+    }
+  }
+
   handlePendingTasks(List<List<int>> pendingActionCells) {
     final List<List<int>> newPendingItems = [];
     for (var pendingCell in pendingActionCells) {
@@ -46,16 +65,6 @@ class _GameScreenState extends State<GameScreen> {
         final newRow = possibleMovement[0];
         final newColumn = possibleMovement[1];
         final currentMovingDotId = matrix[row][column].dotIds[i];
-        final dotsInNewLocation = matrix[newRow][newColumn].dotIds;
-        Future.delayed(const Duration(milliseconds: 500), () {
-          for (var dotId in dotsInNewLocation) {
-            final newLocationCollegueDotIndex =
-                dotsList.indexWhere((element) => element.id == dotId);
-            dotsList[newLocationCollegueDotIndex].player =
-                matrix[row][column].user;
-          }
-          setState(() {});
-        });
         matrix[newRow][newColumn].dotIds.add(currentMovingDotId);
         final movingDotIndex =
             dotsList.indexWhere((element) => element.id == currentMovingDotId);
@@ -72,6 +81,22 @@ class _GameScreenState extends State<GameScreen> {
           newPendingItems.add([newRow, newColumn]);
         }
       }
+      // Future.delayed(const Duration(milliseconds: 400), () {
+      for (int i = 0; i < possibleMovements.length; i++) {
+        final possibleMovement = possibleMovements[i];
+        final newRow = possibleMovement[0];
+        final newColumn = possibleMovement[1];
+        final dotsInNewLocation = matrix[newRow][newColumn].dotIds;
+        randomizeDots(newRow, newColumn);
+        for (var dotId in dotsInNewLocation) {
+          final newLocationColleagueDotIndex =
+              dotsList.indexWhere((element) => element.id == dotId);
+          dotsList[newLocationColleagueDotIndex].player =
+              matrix[row][column].user;
+        }
+      }
+      setState(() {});
+      // });
       matrix[row][column].dotIds = [];
       setState(() {});
       handleDelayedPendingTasks(newPendingItems, false);
@@ -90,7 +115,8 @@ class _GameScreenState extends State<GameScreen> {
         () => handlePendingTasks(pendingActionCells),
       );
     } else {
-      Future.delayed(Duration(milliseconds: short ? 100 : 1000), handleChangePlayerIndex);
+      Future.delayed(
+          Duration(milliseconds: short ? 100 : 1000), handleChangePlayerIndex);
     }
   }
 
@@ -112,13 +138,14 @@ class _GameScreenState extends State<GameScreen> {
     setState(() {});
   }
 
-  handleIndexTap(int x, int y) {
-    handleAddDot(x, y);
-    if (isCellOverflowing(x, y)) {
+  handleIndexTap(int row, int column) {
+    handleAddDot(row, column);
+    if (isCellOverflowing(row, column)) {
       handleDelayedPendingTasks([
-        [x, y]
+        [row, column]
       ], true);
     } else {
+      randomizeDots(row, column);
       handleChangePlayerIndex();
     }
   }
@@ -191,10 +218,15 @@ class _GameScreenState extends State<GameScreen> {
                   left: dot.x,
                   top: dot.y,
                   duration: const Duration(milliseconds: 500),
-                  child: Icon(
-                    Icons.circle_sharp,
-                    size: 20,
-                    color: playerColors[dot.player],
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
+                    curve: CustomRapidCurve(),
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: playerColors[dot.player],
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   )),
             ),
           ],

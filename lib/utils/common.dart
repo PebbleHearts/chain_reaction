@@ -1,3 +1,5 @@
+import 'package:chain_reaction/constants/common.dart';
+
 List<List<int>> getNumberOfPossibleMovementDirections(int x, int xMax, int y, int yMax) {
   List<List<int>> possibleMovements = [];
   if (!(x == 0)) {
@@ -15,4 +17,8 @@ List<List<int>> getNumberOfPossibleMovementDirections(int x, int xMax, int y, in
   }
 
   return possibleMovements;
+}
+
+List<int> getRandomizedDotOffset(int index, int totalLength) {
+  return offsetMap[totalLength - 1][index];
 }
