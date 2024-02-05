@@ -48,9 +48,11 @@ class _GameScreenState extends State<GameScreen> {
         final currentMovingDotId = matrix[row][column].dotIds[i];
         final dotsInNewLocation = matrix[newRow][newColumn].dotIds;
         Future.delayed(const Duration(milliseconds: 500), () {
-          for(var dotId in dotsInNewLocation) {
-            final newLocationCollegueDotIndex =  dotsList.indexWhere((element) => element.id == dotId);
-            dotsList[newLocationCollegueDotIndex].player = matrix[row][column].user;
+          for (var dotId in dotsInNewLocation) {
+            final newLocationCollegueDotIndex =
+                dotsList.indexWhere((element) => element.id == dotId);
+            dotsList[newLocationCollegueDotIndex].player =
+                matrix[row][column].user;
           }
           setState(() {});
         });
@@ -76,6 +78,11 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  handleChangePlayerIndex() {
+    currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+    setState(() {});
+  }
+
   handleDelayedPendingTasks(List<List<int>> pendingActionCells, bool short) {
     if (pendingActionCells.isNotEmpty) {
       Future.delayed(
@@ -83,8 +90,7 @@ class _GameScreenState extends State<GameScreen> {
         () => handlePendingTasks(pendingActionCells),
       );
     } else {
-      currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-      setState(() {});
+      Future.delayed(Duration(milliseconds: short ? 100 : 1000), handleChangePlayerIndex);
     }
   }
 
@@ -113,7 +119,7 @@ class _GameScreenState extends State<GameScreen> {
         [x, y]
       ], true);
     } else {
-      handleDelayedPendingTasks([], false);
+      handleChangePlayerIndex();
     }
   }
 
