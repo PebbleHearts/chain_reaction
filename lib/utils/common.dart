@@ -20,5 +20,6 @@ List<List<int>> getNumberOfPossibleMovementDirections(int x, int xMax, int y, in
 }
 
 List<int> getRandomizedDotOffset(int index, int totalLength) {
-  return offsetMap[totalLength - 1][index];
+  final offset = offsetMap[totalLength - 1][index];
+  return offset;
 }

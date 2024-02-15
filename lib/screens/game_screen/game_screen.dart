@@ -58,14 +58,24 @@ class _GameScreenState extends State<GameScreen> {
     for (var pendingCell in pendingActionCells) {
       final row = pendingCell[0];
       final column = pendingCell[1];
+      final currentEditingUser = matrix[row][column].user;
       final possibleMovements = getNumberOfPossibleMovementDirections(
           row, numberOfRows - 1, column, numberOfColumns - 1);
+      final numberOfPossibleMovements = possibleMovements.length;
+      final numberOfDotsInCell = matrix[row][column].dotIds.length;
+      final bool hasExtraDotToHandle =
+          numberOfDotsInCell > numberOfPossibleMovements;
+
       for (int i = 0; i < possibleMovements.length; i++) {
         final possibleMovement = possibleMovements[i];
         final newRow = possibleMovement[0];
         final newColumn = possibleMovement[1];
-        final currentMovingDotId = matrix[row][column].dotIds[i];
-        matrix[newRow][newColumn].dotIds.add(currentMovingDotId);
+        final currentCell = matrix[row][column];
+        final currentMovingDotId = currentCell.dotIds[i];
+        matrix[newRow][newColumn].dotIds = [
+          ...matrix[newRow][newColumn].dotIds,
+          currentMovingDotId
+        ];
         final movingDotIndex =
             dotsList.indexWhere((element) => element.id == currentMovingDotId);
         final xDirection = newColumn;
@@ -74,33 +84,40 @@ class _GameScreenState extends State<GameScreen> {
         final yOffset = yDirection * 100.0 + 40;
         dotsList[movingDotIndex].x = xOffset;
         dotsList[movingDotIndex].y = yOffset;
-        dotsList[movingDotIndex].player = currentPlayerIndex;
-        matrix[newRow][newColumn].user = currentPlayerIndex;
 
-        if (isCellOverflowing(newRow, newColumn)) {
-          newPendingItems.add([newRow, newColumn]);
-        }
-      }
-      // Future.delayed(const Duration(milliseconds: 400), () {
-      for (int i = 0; i < possibleMovements.length; i++) {
-        final possibleMovement = possibleMovements[i];
-        final newRow = possibleMovement[0];
-        final newColumn = possibleMovement[1];
+        matrix[newRow][newColumn].user = currentEditingUser;
+        dotsList[movingDotIndex].player = currentEditingUser;
         final dotsInNewLocation = matrix[newRow][newColumn].dotIds;
         randomizeDots(newRow, newColumn);
         for (var dotId in dotsInNewLocation) {
           final newLocationColleagueDotIndex =
               dotsList.indexWhere((element) => element.id == dotId);
-          dotsList[newLocationColleagueDotIndex].player =
-              matrix[row][column].user;
+          dotsList[newLocationColleagueDotIndex].player = currentEditingUser;
+        }
+
+        if (isCellOverflowing(newRow, newColumn)) {
+          final isCellAlreadyAdded = newPendingItems.indexWhere(
+              (element) => element[0] == newRow && element[1] == newColumn);
+          if (isCellAlreadyAdded == -1) {
+            newPendingItems.add([newRow, newColumn]);
+          }
         }
       }
+
+      if (hasExtraDotToHandle) {
+        final dotsListLength = matrix[row][column].dotIds.length;
+        final remainingDotsList =
+            matrix[row][column].dotIds.sublist(dotsListLength - 1);
+        matrix[row][column].dotIds = remainingDotsList;
+        randomizeDots(row, column);
+      } else {
+        matrix[row][column].dotIds = [];
+        matrix[row][column].user = -1;
+      }
+
       setState(() {});
-      // });
-      matrix[row][column].dotIds = [];
-      setState(() {});
-      handleDelayedPendingTasks(newPendingItems, false);
     }
+    handleDelayedPendingTasks(newPendingItems, false);
   }
 
   handleChangePlayerIndex() {
@@ -217,9 +234,9 @@ class _GameScreenState extends State<GameScreen> {
                   key: ValueKey(dot.id),
                   left: dot.x,
                   top: dot.y,
-                  duration: const Duration(milliseconds: 500),
+                  duration: const Duration(milliseconds: 800),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 500),
+                    duration: const Duration(milliseconds: 800),
                     curve: CustomRapidCurve(),
                     width: 20,
                     height: 20,
